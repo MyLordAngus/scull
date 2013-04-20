@@ -5,7 +5,6 @@
 #include <linux/slab.h>		/* kfree */
 
 #include "scull.h"
-#include "scull_init.h"
 
 MODULE_AUTHOR("Amaury Denoyelle <amaury.denoyelle@gmail.com>");
 MODULE_LICENSE("GPL");
@@ -32,12 +31,32 @@ static void cleanup_code(void)
 
 static int initialization_code(void)
 {
-	int retval = 0;
+	int retval = 0, i;
 
 	/* Initialization code */
 	printk(KERN_DEBUG "scull init\n");
-	if((retval = scull_init_module(&dev)) != 0)
+
+	/* Allocate scull devices structures */
+	if((scull_devices = kmalloc(nbr_devices * sizeof(struct scull_dev),
+			GFP_KERNEL)) == NULL) {
+		printk(KERN_ERR "Cannot allocate scull devices\n");
+		retval = -ENOMEM;
 		goto fail;
+	}
+
+	memset(scull_devices, 0, nbr_devices * sizeof(struct scull_dev));
+
+	for(i = 0; i < nbr_devices; ++i) {
+		scull_devices[i].data = NULL;
+		scull_devices[i].quantum = quantum;
+		scull_devices[i].qset = qset;
+		scull_devices[i].size = 0;
+
+		/* Allocate character devices */
+		if((retval = alloc_chrdev_region(&dev, 0, nbr_devices, "scull"))) {
+			goto fail;
+		}
+	}
 
 	return 0;
 
