@@ -1,2 +1,2 @@
-obj-m := scull.o
-module-objs := scull.o
+obj-m		:= scull.o
+scull-objs	:= main.o scull_init.o
