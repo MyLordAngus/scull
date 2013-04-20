@@ -1,6 +1,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
+#include "scull.h"
+
+MODULE_AUTHOR("Amaury Denoyelle <amaury.denoyelle@gmail.com>");
 MODULE_LICENSE("GPL");
 
 static int __init initialization_code(void)
