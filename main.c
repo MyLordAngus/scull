@@ -46,16 +46,17 @@ static int initialization_code(void)
 
 	memset(scull_devices, 0, nbr_devices * sizeof(struct scull_dev));
 
+	/* Allocate character devices */
+	if((retval = alloc_chrdev_region(&dev, 0, nbr_devices, "scull"))) {
+		goto fail;
+	}
+
 	for(i = 0; i < nbr_devices; ++i) {
 		scull_devices[i].data = NULL;
 		scull_devices[i].quantum = quantum;
 		scull_devices[i].qset = qset;
 		scull_devices[i].size = 0;
 
-		/* Allocate character devices */
-		if((retval = alloc_chrdev_region(&dev, 0, nbr_devices, "scull"))) {
-			goto fail;
-		}
 	}
 
 	return 0;
