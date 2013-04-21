@@ -2,6 +2,7 @@
 #define SCULL_H_
 
 #include <linux/cdev.h>
+#include <linux/device.h>
 
 struct scull_dev {
 	struct scull_qset * data;	/* pointer to first qset */
@@ -9,6 +10,7 @@ struct scull_dev {
 	int qset;			/* the qset (array pointer) size */
 	unsigned long size;	/* actual size of data stored in device */
 	struct cdev cdev;		/* character device struct */
+	struct device * dev;		/* dev structure from device_create */
 };
 
 struct scull_qset {
