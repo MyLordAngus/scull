@@ -5,6 +5,9 @@
 #include <linux/slab.h>		/* kfree */
 
 #include "scull.h"
+#include "file_ops.h"
+
+#define CLASS_NAME "scull"
 
 MODULE_AUTHOR("Amaury Denoyelle <amaury.denoyelle@gmail.com>");
 MODULE_LICENSE("GPL");
@@ -20,18 +23,24 @@ dev_t dev;
 
 static __exit void cleanup_code(void)
 {
+	int i;
+
 	/* Clean up code */
 	printk(KERN_DEBUG "scull cleaning\n");
 
-	if(scull_devices)
-		kfree(scull_devices);
+	for(i = 0; i < nbr_devices; ++i)
+		cdev_del(&scull_devices[i].cdev);
 
 	unregister_chrdev_region(dev, nbr_devices);
+
+	if(scull_devices)
+		kfree(scull_devices);
 }
 
 static __init int initialization_code(void)
 {
 	int retval = 0, i;
+	int devno;
 
 	/* Initialization code */
 	printk(KERN_DEBUG "scull init\n");
@@ -47,7 +56,7 @@ static __init int initialization_code(void)
 	memset(scull_devices, 0, nbr_devices * sizeof(struct scull_dev));
 
 	/* Allocate character devices */
-	if((retval = alloc_chrdev_region(&dev, 0, nbr_devices, "scull"))) {
+	if((retval = alloc_chrdev_region(&dev, 0, nbr_devices, CLASS_NAME))) {
 		goto chrdev_fail;
 	}
 
@@ -57,6 +66,18 @@ static __init int initialization_code(void)
 		scull_devices[i].qset = qset;
 		scull_devices[i].size = 0;
 
+		/* cdev structure */
+		cdev_init(&scull_devices[i].cdev, &fops);
+
+		scull_devices[i].cdev.ops = &fops;
+		scull_devices[i].cdev.owner = THIS_MODULE;
+
+		printk(KERN_DEBUG "Init cdev struct, prepare to add it\n");
+		devno = MKDEV(MAJOR(dev), MINOR(dev) + i);
+
+		/* add cdev structure, be prepared to handle it !! */
+		if(cdev_add(&scull_devices[i].cdev, devno, 1) < 0)
+			printk(KERN_ERR "Failed to add scull dev nbr %i\n", i);
 	}
 
 	return 0;
