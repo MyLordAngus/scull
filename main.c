@@ -15,10 +15,10 @@ int nbr_devices = 4;
 int quantum = 4000;
 int qset = 1000;
 
-/* device file */
+/* device file number */
 dev_t dev;
 
-static void cleanup_code(void)
+static __exit void cleanup_code(void)
 {
 	/* Clean up code */
 	printk(KERN_DEBUG "scull cleaning\n");
@@ -29,7 +29,7 @@ static void cleanup_code(void)
 	unregister_chrdev_region(dev, nbr_devices);
 }
 
-static int initialization_code(void)
+static __init int initialization_code(void)
 {
 	int retval = 0, i;
 
@@ -41,14 +41,14 @@ static int initialization_code(void)
 			GFP_KERNEL)) == NULL) {
 		printk(KERN_ERR "Cannot allocate scull devices\n");
 		retval = -ENOMEM;
-		goto fail;
+		goto kmalloc_fail;
 	}
 
 	memset(scull_devices, 0, nbr_devices * sizeof(struct scull_dev));
 
 	/* Allocate character devices */
 	if((retval = alloc_chrdev_region(&dev, 0, nbr_devices, "scull"))) {
-		goto fail;
+		goto chrdev_fail;
 	}
 
 	for(i = 0; i < nbr_devices; ++i) {
@@ -61,8 +61,9 @@ static int initialization_code(void)
 
 	return 0;
 
-fail:
-	cleanup_code();
+chrdev_fail:
+	kfree(scull_devices);
+kmalloc_fail:
 	return retval;
 }
 
