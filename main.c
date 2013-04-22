@@ -17,9 +17,6 @@ struct scull_dev * scull_devices;
 int nbr_devices = 4;
 struct class * scull_class;
 
-int quantum = 4000;
-int qset = 1000;
-
 /* device file number */
 dev_t dev;
 
@@ -80,8 +77,8 @@ static __init int initialization_code(void)
 
 	for(i = 0; i < nbr_devices; ++i) {
 		scull_devices[i].data = NULL;
-		scull_devices[i].quantum = quantum;
-		scull_devices[i].qset = qset;
+		scull_devices[i].quantum = SCULL_QUANTUM;
+		scull_devices[i].qset = SCULL_QSET;
 		scull_devices[i].size = 0;
 
 		/* cdev structure */
