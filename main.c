@@ -27,7 +27,11 @@ static __exit void cleanup_code(void)
 	/* Clean up code */
 	printk(KERN_DEBUG "scull cleaning\n");
 
+
 	for(i = 0; i < nbr_devices; ++i) {
+		/* Trim data */
+		scull_trim(&scull_devices[i]);
+
 		devno = MKDEV(MAJOR(dev), MINOR(dev) + i);
 		if(scull_class)
 			device_destroy(scull_class, devno);
@@ -73,9 +77,9 @@ static __init int initialization_code(void)
 		goto class_create_fail;
 	}
 
-	memset(scull_devices, 0, nbr_devices * sizeof(struct scull_dev));
-
 	for(i = 0; i < nbr_devices; ++i) {
+		memset(&scull_devices[i], 0, sizeof(struct scull_dev));
+
 		scull_devices[i].data = NULL;
 		scull_devices[i].quantum = SCULL_QUANTUM;
 		scull_devices[i].qset = SCULL_QSET;

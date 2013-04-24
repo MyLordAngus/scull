@@ -66,12 +66,12 @@ ssize_t scull_write(struct file * file, const char __user * buf, size_t count,
 	if(!scull_qset->data) {
 		printk(KERN_DEBUG "Allocate qset array pointer\n");
 
-		if((scull_qset->data = kmalloc(scull_dev->qset * sizeof(void *),
+		if((scull_qset->data = kmalloc(scull_dev->qset * sizeof(char *),
 						GFP_KERNEL)) == NULL) {
 			printk(KERN_ERR "Cannot allocate pointer array\n");
 			return -ENOMEM;
 		}
-		memset(scull_qset->data, 0, scull_dev->qset * sizeof(void *));
+		memset(scull_qset->data, 0, scull_dev->qset * sizeof(char *));
 	}
 
 	/* Allocate the quantum if needed */
@@ -92,6 +92,7 @@ ssize_t scull_write(struct file * file, const char __user * buf, size_t count,
 	if(copy_from_user(scull_qset->data[quantum_index], buf, count))
 		return -EFAULT;
 
+	scull_dev->size += count;
 	printk(KERN_DEBUG "Writing is complete :)\n");
 
 	return count;
@@ -146,4 +147,39 @@ struct scull_qset * scull_find_qset(struct scull_dev * scull_dev,
 
 	printk(KERN_DEBUG "Found a qset, returning it\n");
 	return scull_qset;
+}
+
+/** Trim all the data, to be called before closing device */
+void scull_trim(struct scull_dev * scull_dev)
+{
+	int i;
+	struct scull_qset * scull_qset, * temp_qset;
+
+	for(scull_qset = scull_dev->data; scull_qset; ) {
+		printk(KERN_DEBUG "Prepare to free qset\n");
+
+		if(scull_qset->data) {
+			printk(KERN_DEBUG "Prepare to free qset array\n");
+
+			for(i = 0; i < scull_dev->qset; ++i) {
+				if(scull_qset->data[i]) {
+					printk(KERN_DEBUG "Prepare to free quantum\n");
+					kfree(scull_qset->data[i]);
+					printk(KERN_DEBUG "Quantum free\n");
+				}
+			}
+			kfree(scull_qset->data);
+			printk(KERN_DEBUG "Qset array free\n");
+		}
+
+		temp_qset = scull_qset;
+		scull_qset = scull_qset->next;
+		kfree(temp_qset);
+
+		printk(KERN_DEBUG "Free qset\n");
+	}
+
+	/* Re-init scull_dev struct */
+	scull_dev->size = 0;
+	scull_dev->data = 0;
 }
