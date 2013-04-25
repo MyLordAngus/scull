@@ -33,13 +33,53 @@ int scull_open(struct inode * inode, struct file * file)
 ssize_t scull_read(struct file * file, char __user * buf, size_t count,
 		loff_t * off)
 {
-	return 0;
+	int ret = 0, quantum_index, quantum_off;
+	unsigned int rest = 0;
+	struct scull_dev * scull_dev = file->private_data;
+	struct scull_qset * scull_qset;
+
+	printk(KERN_DEBUG "Prepare to read scull device\n");
+
+	if(*off >= scull_dev->size)
+		goto out;
+	if(scull_dev->size < *off + count)
+		count = scull_dev->size - *off;
+
+	if(!(scull_qset = scull_find_qset(scull_dev, *off))) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	printk(KERN_DEBUG "Found a qset to read\n");
+
+	quantum_index = *off / scull_dev->quantum;
+	quantum_off = *off % scull_dev->quantum;
+
+	if(quantum_off + count > scull_dev->quantum) {
+		rest = count + quantum_off - scull_dev->quantum;
+		count = scull_dev->quantum - quantum_off;
+	}
+
+	if(!(scull_qset->data[quantum_index])) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	printk(KERN_DEBUG "Found the quantum concerned\n");
+
+	if(copy_to_user(buf, scull_qset->data[quantum_index] + quantum_off, count)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	*off += count;
+	ret = count;
+	printk(KERN_DEBUG "Reading %lu bytes done, rest %u \\n/\n", count, rest);
+out:
+	return ret;
 }
 
 ssize_t scull_write(struct file * file, const char __user * buf, size_t count,
 		loff_t * off)
 {
-	int index;	/* The index where the write should begin */
 	int rest = 0;	/* The count of item too big for the current quantum */
 	int qset_index, quantum_index;
 
@@ -50,9 +90,8 @@ ssize_t scull_write(struct file * file, const char __user * buf, size_t count,
 	scull_dev = file->private_data;
 	scull_qset = scull_dev->data;
 
-	index = file->f_pos + *off;
-	qset_index = index / (scull_dev->quantum * scull_dev->qset);
-	quantum_index = index % scull_dev->quantum;
+	qset_index = *off / (scull_dev->quantum * scull_dev->qset);
+	quantum_index = *off % scull_dev->quantum;
 
 	if(quantum_index + count > scull_dev->quantum) {
 		rest = quantum_index + count - scull_dev->quantum;
@@ -92,7 +131,13 @@ ssize_t scull_write(struct file * file, const char __user * buf, size_t count,
 	if(copy_from_user(scull_qset->data[quantum_index], buf, count))
 		return -EFAULT;
 
-	scull_dev->size += count;
+	*off += count;
+
+	/* Adjust the size if this is new data that do not overwrite
+	 * previous one */
+	if(scull_dev->size < *off)
+		scull_dev->size = *off;
+
 	printk(KERN_DEBUG "Writing is complete :)\n");
 
 	return count;
